@@ -1,0 +1,295 @@
+///////// YAYA　ゴーストテンプレート
+///////// メニュー処理辞書
+
+//**** 注意 ********************************************************************
+// この辞書はゴーストテンプレートに必要な共通処理をまとめたものです。
+// 通常はここをいじる必要はありません。
+//**** 注意 ********************************************************************
+
+//******************************************************************************
+//起動・終了初期化
+//******************************************************************************
+
+OnSystemLoad.AYATEMPLATE
+{
+	AYATEMPLATE.installedplugin_name = IARRAY
+	AYATEMPLATE.installedplugin_id = IARRAY
+	AYATEMPLATE.stroke = IARRAY
+	AYATEMPLATE.strokeid = IARRAY
+	AYATEMPLATE.stroketimer = IARRAY
+	AYATEMPLATE.LastTalk = ''
+
+	SetDefaultValues
+	ERASEVAR(UnnecessaryVariablesByUpdate)
+	SetDefaultValuesForReset
+}
+
+OnSystemUnload.AYATEMPLATE
+{
+	//ERASEVAR('AYATEMPLATE.installedplugin_name')
+	//ERASEVAR('AYATEMPLATE.installedplugin_id')
+	ERASEVAR('AYATEMPLATE.stroke')
+	ERASEVAR('AYATEMPLATE.strokeid')
+	ERASEVAR('AYATEMPLATE.stroketimer')
+	ERASEVAR('AYATEMPLATE.LastTalk')
+
+	ERASEVAR(UnnecessaryVariablesByUpdate)
+}
+
+SetDefaultValuesForReset
+{
+	//リロードなどでリセットされてほしい状態たち
+	//DelayEventは消さなくていい(今は無いが)
+
+	//モードを普通の時計へ戻す
+	clock_status = 'clock'
+
+	//一時的な状態を空に
+	IsNotifyDelayed=IARRAY
+	CurrentKitchenEndTime=''
+	CurrentPomodoroEndTime=''
+	CurrentPomodoroWorkCount=''
+	CurrentPomodoroCycle=''
+	LastTimeRefreshedClock=IARRAY
+}
+
+SetDefaultValues
+{
+	//更新後の仕様変更など
+	if GETTYPEEX('alarm_active')==3 {
+		alarm_active=(TOINT(alarm_active[0]),TOINT(alarm_active[1]),TOINT(alarm_active[2]))
+	}
+	if STRSTR(alarm_sound,'|',0)>=0 {
+		alarm_sound=(alarm_sound[0,'|'],alarm_sound[1,'|'],alarm_sound[2,'|'])
+		alarm_notifymethod=(0,0,0)
+		//ファイルパスが入っているのに1文字以下のケースは無い＝音無し
+		if STRLEN(alarm_sound[0])<=1 { alarm_sound[0]='' }
+		else { alarm_notifymethod[0]=1 }
+		if STRLEN(alarm_sound[1])<=1 { alarm_sound[1]='' }
+		else { alarm_notifymethod[1]=1 }
+		if STRLEN(alarm_sound[2])<=1 { alarm_sound[2]='' }
+		else { alarm_notifymethod[2]=1 }
+	}
+	if GETTYPEEX('alarm_status')==3 {
+		alarm_status=(alarm_status[0],alarm_status[1],alarm_status[2])
+	}
+	if ISVAR('pomodoro_sound_work')==1 || ISVAR('pomodoro_sound_rest')==1 {
+		//pomodoro_sound_～はどちらかのみがあるケースもある
+		pomodoro_sound=(pomodoro_sound_work,pomodoro_sound_rest)
+		pomodoro_notifymethod=(0,0)
+		if STRLEN(pomodoro_sound[0])<=1 { pomodoro_sound[0]='' }
+		else { pomodoro_notifymethod[0]=1 }
+		if STRLEN(pomodoro_sound[1])<=1 { pomodoro_sound[1]='' }
+		else { pomodoro_notifymethod[1]=1 }
+	}
+	if ISVAR('pomodoro_time_work')==1 && ISVAR('pomodoro_time_rest')==1 {
+		//timeが無いことはたぶんない
+		pomodoro_time=(pomodoro_time_work,pomodoro_time_rest)
+	}
+	if ISVAR('timesignal_active')==1 {
+		signal_active=(TOINT(timesignal_active[0]),TOINT(timesignal_active[1]),TOINT(timesignal_active[2]))
+	}
+	if ISVAR('timesignal_sound')==1 {
+		signal_sound=(timesignal_sound[0,'|'],timesignal_sound[1,'|'],timesignal_sound[2,'|'])
+		signal_notifymethod=(0,0,0)
+		if STRLEN(timesignal_sound[0,'|'])<=1 { signal_sound[0]='' }
+		else { signal_notifymethod[0]=1 }
+		if STRLEN(timesignal_sound[1,'|'])<=1 { signal_sound[1]='' }
+		else { signal_notifymethod[1]=1 }
+		if STRLEN(timesignal_sound[2,'|'])<=1 { signal_sound[2]='' }
+		else { signal_notifymethod[2]=1 }
+	}
+	if ISVAR('timesignal_status')==1 {
+		signal_status=(timesignal_status[0],timesignal_status[1],timesignal_status[2])
+	}
+
+	//変数が無ければ初期値を設定
+	if ISVAR('alarm_active')==0 { alarm_active=(0,0,0) }
+	if ISVAR('alarm_memo')==0 { alarm_memo=('','','') }
+	if ISVAR('alarm_notifymethod')==0 { alarm_notifymethod=(0,0,0) }
+	if ISVAR('alarm_repeat')==0 { alarm_repeat=(1,1,1) }
+	if ISVAR('alarm_sound')==0 { alarm_sound=('','','') }
+	if ISVAR('alarm_status')==0 { alarm_status=('0630','1200','1730') }
+	if ISVAR('IsShellSupportedSeconds')==0 { IsShellSupportedSeconds=0 }
+	if ISVAR('IsShellTypeAnalog')==0 { IsShellTypeAnalog=0 }
+	if ISVAR('kitchen_memo')==0 { kitchen_memo='' }
+	if ISVAR('kitchen_notifymethod')==0 { kitchen_notifymethod=0 }
+	if ISVAR('kitchen_prioritize')==0 { kitchen_prioritize=1 }
+	if ISVAR('kitchen_repeat')==0 { kitchen_repeat=0 }
+	if ISVAR('kitchen_sound')==0 { kitchen_sound='' }
+	if ISVAR('kitchen_status')==0 { kitchen_status=150 }
+	if ISVAR('pomodoro_cycle')==0 { pomodoro_cycle=4 }
+	if ISVAR('pomodoro_notifymethod')==0 { pomodoro_notifymethod=(0,0) }
+	if ISVAR('pomodoro_prioritize')==0 { pomodoro_prioritize=1 }
+	if ISVAR('pomodoro_sound')==0 { pomodoro_sound=('','') }
+	if ISVAR('pomodoro_time')==0 { pomodoro_time=(25,5) }
+	if ISVAR('signal_active')==0 { signal_active=(0,0,0) }
+	if ISVAR('signal_memo')==0 { signal_memo=('','','') }
+	if ISVAR('signal_notifymethod')==0 { signal_notifymethod=(0,0,0) }
+	if ISVAR('signal_repeat')==0 { signal_repeat=(1,1,1) }
+	if ISVAR('signal_sound')==0 { signal_sound=('','','') }
+	if ISVAR('signal_status')==0 { signal_status=('00','20','40') }
+}
+
+UnnecessaryVariablesByUpdate : array
+{
+	//メニューの開閉状態
+	'menu_open_alarm'
+	'menu_open_pomodoro'
+	'menu_open_timesignal'
+	//配列形式にしたので
+	'pomodoro_sound_rest'
+	'pomodoro_sound_work'
+	'pomodoro_time_rest'
+	'pomodoro_time_work'
+	//変数名変更により
+	'timesignal_active'
+	'timesignal_sound'
+	'timesignal_status'
+	'CurrentPomodoroRemainingTime'
+	'CurrentPomodoroRemainingCycle'
+	'pomodoro_status'
+	'LastMinuteRefreshedClock'
+	//廃止
+	'username'
+	//不明
+	'pomodoro_mode'
+}
+
+//******************************************************************************
+//メニュー関係
+//******************************************************************************
+
+//------------------------------------------------------------------------------
+//イベント処理
+//選択肢ID/アンカーIDをそのまま関数名として書けるようになります。
+//------------------------------------------------------------------------------
+
+OnChoiceSelect
+{
+	if ISFUNC(reference[0]) {
+		EVAL(reference[0])
+	}
+}
+
+OnAnchorSelect
+{
+	if RE_SEARCH(reference[0],'^(http|https)://') {
+		if basewarename == 'SSP' {
+			"\C"
+		}
+		--
+		"\j[%(AYATEMPLATE.EscapeText(reference[0]))]"
+	}
+	else {
+		if ISFUNC(reference[0]) {
+			EVAL(reference[0])
+		}
+	}
+}
+
+//------------------------------------------------------------------------------
+//メニュー横1行反転
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+//通常メニュー
+AYATEMPLATE.MenuItem
+{
+	_linefeed = 100
+	_n = _argc
+	if _n >= 3 {
+		if GETTYPE(_argv[_n-1]) == 1 { //整数
+			_linefeed = _argv[_n-1]
+			_n -= 1
+		}
+	}
+
+	_lftext = ''
+	while _linefeed > 0 {
+		if _linefeed >= 100 {
+			_lftext += '\n'
+		}
+		else {
+			_lftext += '\n[half]'
+		}
+		_linefeed -= 100
+	}
+
+	_lftext
+	--
+	'\![*]\q['
+	--
+	AYATEMPLATE.EscapeText( SHIORI3FW.MakeJustText(_argv[0],46) )
+	--
+	_s = ''
+	for _i = 1 ; _i < _n ; _i++ {
+		_s += ',' + AYATEMPLATE.EscapeText(_argv[_i])
+	}
+	_s
+	--
+	']'
+}
+
+//------------------------------------------------------------------------------
+//エスケープ
+AYATEMPLATE.EscapeText
+{
+	_r = _argv[0]
+	if RE_SEARCH(_r,'["\[\]]') {
+		'"' + REPLACE(_r,'"','""') + '"'
+	}
+	else {
+		_r
+	}
+}
+
+//******************************************************************************
+//リンクメニュー
+//******************************************************************************
+AYATEMPLATE.LinkMenuConvert
+{
+    _text = ''
+    _data = IARRAY
+    for _i = 0 ; _i < _argc ; _i++ {
+        _data = (RE_SPLIT(_argv[_i],'[ \t]*\|[ \t]*'),'','') //ダミー
+        _text += "%(_data[0])%(CHR(1))%(_data[1])%(CHR(1))%(_data[2])%(CHR(1))%(CHR(2))"
+    }
+    _text;
+}
+
+//******************************************************************************
+//メモ用の文字列省略
+//******************************************************************************
+
+MemoTextShorten
+{
+	//「SHIORI3FW.MakeShortText」から省略時のドット追加を取ったもの
+	//引数：argv0＝テキスト　argv1＝文字数（半角換算）
+	if _argc < 2 {
+		''
+		return
+	}
+	_src = _argv[0]
+	_cut = TOINT(_argv[1])
+	_text = ''
+	if GETSTRBYTES(_argv[0],127) <= _cut {
+		_argv[0]
+		return
+	}
+	_num = STRLEN(_src)
+	_lendiff = 0
+	while 1 {
+		_text = SUBSTR(_argv[0],0,_num)
+		_lendiff = _cut - GETSTRBYTES(_text,127)
+		if _lendiff >= 0 {
+			break
+		}
+		_num -= 1
+		if _num <= 0 {
+			''
+			return
+		}
+	}
+	_text
+}

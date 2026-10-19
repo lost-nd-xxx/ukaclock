@@ -1,0 +1,648 @@
+//******************************************************************************
+// YAYA　ゴーストテンプレート
+// 種々のイベント辞書
+//******************************************************************************
+
+//------------------------------------------------------------------------------
+//現在のシェルが秒表示対応かどうか
+//------------------------------------------------------------------------------
+OnNotifyShellInfo
+{
+	if RE_SEARCH(reference[1],'_seconds/$')==1 || RE_SEARCH(reference[0],'seconds')==1 {
+		//フォルダ名末尾が「_seconds」で終わっている or シェル名に「seconds」が含まれる
+		IsShellSupportedSeconds=1
+	}
+	else {
+		IsShellSupportedSeconds=0
+	}
+	
+	if RE_SEARCH(reference[1],'/.*?analog.*?/$')==1 || RE_SEARCH(reference[0],'analog')==1 {
+		//フォルダ名に「analog」が含まれる or シェル名に「analog」が含まれる
+		IsShellTypeAnalog=1
+	}
+	else {
+		IsShellTypeAnalog=0
+	}
+}
+
+//------------------------------------------------------------------------------
+//OnMinuteChange：毎分。喋れない時はnotifyで来る
+//------------------------------------------------------------------------------
+
+OnMinuteChange
+{
+	_notify=''
+	if clock_status=='pomodoro' && pomodoro_prioritize==0 {
+		//ポモドーロ中＆通知する設定なら、状況を調べて変数に入れる
+		_notify=CheckNotifies
+	}
+	elseif clock_status=='kitchen' && kitchen_prioritize==0 {
+		//キッチンタイマー中＆通知する設定なら、状況を調べて変数に入れる
+		_notify=CheckNotifies
+	}
+	elseif clock_status=='clock' {
+		//普通の時計なので、普通に状況をチェック
+		_notify=CheckNotifies
+	}
+
+	if reference[3]==0 {
+		//喋れない
+		if STRLEN(_notify)>0 {
+			//通知すべき内容があれば遅延通知を予約
+			IsNotifyDelayed=(_notify,IsNotifyDelayed)
+			return
+		}
+	}
+	else {
+		//喋れる
+		OnRefreshClock_Exec+_notify+'\e'
+	}
+}
+
+//------------------------------------------------------------------------------
+//OnSecondChange：毎秒。喋れない時はnotifyで来る
+//------------------------------------------------------------------------------
+
+OnSecondChange
+{
+	_time=GETTIME()
+	_reserved=''
+	_clock=''
+		
+	if clock_status=='kitchen' {
+		//キッチンタイマー中だったので判定
+		_clock=OnRefreshKitchen_Check
+	}
+	elseif clock_status=='pomodoro' {
+		//ポモドーロ中だったので判定
+		_clock=OnRefreshPomodoro_Check
+	}
+	elseif _time[6]!=0 && _time[5]!=LastTimeRefreshedClock[1] && clock_status=='clock' {
+		//0秒＆普通の時計の時はOnMinuteChangeとやることが被る
+		_clock=OnRefreshClock_Exec
+	}
+
+	if reference[3]==1 {
+		//喋れる
+
+		if STRLEN(IsNotifyDelayed)>0 {
+			//アラーム・時報の予約があれば出力に加える
+			_reserved=IsNotifyDelayed
+			//予約は消しておく
+			IsNotifyDelayed=IARRAY
+		}
+		
+		_output=IARRAY
+		if STRLEN(_reserved)>0 { _output=(_output,TOSTR(_reserved)) }
+		if STRLEN(_clock)>0 { _output=(_output,TOSTR(_clock)) }
+		//何か入っていたら整えて出力
+		if STRLEN(_output)>0 {
+			_output=SummarizeNotifies(_output)
+			_output+'\e'
+			return
+		}
+	}
+	else {
+		//喋れない
+		if STRLEN(_clock)>0 && clock_status!='clock' {
+			//普通の時計の時以外は_clockに通知があるかも
+			//2分以上通知が溜まるとあまりよろしくない？
+			IsNotifyDelayed=(_clock,IsNotifyDelayed)
+			return
+		}
+	}
+}
+
+SummarizeNotifies
+{
+	//配列で通知スクリプトを投げるとまとめる
+	_notify=_argv
+
+	if ARRAYSIZE(_notify)<=1 {
+		//1個だったのでそのまま返す
+		_notify
+		return
+	}
+	else {
+		//2個以上ある
+
+		//変数初期化
+		_output=''
+		_trayballoontext=''
+		_trayballoon=''
+
+		for _c=0; _c<ARRAYSIZE(_notify); _c++ {
+			//\eが入っていると通知がされないので取る
+			_notify[_c]=REPLACE(TOSTR(_notify[_c]),'\e','',0)
+
+			if STRSTR(_notify[_c],',trayballoon,',0)!=-1 {
+				//OS通知がある
+				//通知を配列へ入れる
+				_tmp=RE_SEARCH(_notify[_c],'\\!\[set,trayballoon,.*?text=([^\]]*)\]')
+				_trayballoontext+=RE_GETSTR()[1]
+				_trayballoontext+='/'
+				//OS通知を削除
+				_notify[_c]=RE_REPLACE(_notify[_c],'(\\!\[set,trayballoon,.*?\])','',1)
+			}
+		}
+		
+		//初回のぶんを入れておく
+		_output+=_notify[0]
+
+		for _c=1; _c<ARRAYSIZE(_notify); _c++ {
+			_newline=''
+			if STRSTR(_notify[_c-1],'\_q',0)>=0 && STRSTR(_notify[_c],'\_q',0)>=0 {
+				//改行を入れる必要がある
+				_newline='\n[150]'
+			}
+			_output=_output+_newline+_notify[_c]
+		}
+
+		if STRLEN(_trayballoontext)>0 {
+			//通知テキストをまとめる
+
+			//末尾にもスラッシュが付くので消しておく
+			_trayballoontext=RE_REPLACE(_trayballoontext,'/$','',1)
+
+			//１つの通知にする
+			_trayballoon='\![set,trayballoon,--title=うかくろっく,--icon=info,--text='
+			_trayballoon+=_trayballoontext
+			_trayballoon+=']'
+		}
+
+		_output+_trayballoon
+		return
+	}
+}
+
+CheckNotifies
+{
+	//通知すべきもののスクリプトを返す
+	_output=IARRAY
+	_notify=OnAlarm_Check
+	if STRLEN(_notify)>0 { _output=(_output,TOSTR(_notify)) }
+	_notify=OnSignal_Check
+	if STRLEN(_notify)>0 { _output=(_output,TOSTR(_notify)) }
+
+	if STRLEN(_output)>0 {
+		//何かしら入っていた 必要に応じてまとめる
+		SummarizeNotifies(_output)
+	}
+}
+
+//------------------------------------------------------------------------------
+//アラーム時刻かどうか
+//------------------------------------------------------------------------------
+OnAlarm_Check
+{
+	//アラーム内で時間の重複はできない
+	for _t=GETTIME(), _c=0, _output=''; _c<3&&STRLEN(_output)==0; _c++ {
+		if alarm_active[_c]==1 {
+			_h=TOINT(SUBSTR(alarm_status[_c],0,2))
+			_m=TOINT(SUBSTR(alarm_status[_c],2,2))
+			if _h==_t[4] && _m==_t[5] {
+				//通知すべきものがある
+				_output=_c
+			}
+		}
+	}
+
+	if STRLEN(_output)>0 {
+		OnAlarm_Notify(_output)
+		if alarm_repeat[_output]==0 { alarm_active[_output]=0 }
+	}
+}
+
+OnAlarm_NotifyText
+{
+	_num=_argv[0]
+	_memo='設定時刻です。'
+	if STRLEN(alarm_memo[_num])>0 {
+		_memo=alarm_memo[_num]
+	}
+	_memo="◆アラーム%(TOINT(_num)+1)\n%(_memo)"
+	_memo
+}
+
+OnAlarm_Notify
+{
+	//通知スクリプトを返す \eなどは呼び出し元で入れてくれ
+	_num=_argv[0]
+	_script=''
+	_method=alarm_notifymethod[_num]
+	_sound=alarm_sound[_num]
+	_text=OnAlarm_NotifyText(_num)
+
+	if _method==0 {
+		//OS通知
+		_text=REPLACE(_text,'\n','/',0)
+		_script='\![set,trayballoon,--title=うかくろっく,--icon=info,--text='+_text+']'
+	}
+	elseif _method==1 && FSIZE(_sound)>0 {
+		//音を鳴らす設定＆指定ファイルがあった
+		_script='\_v["'+_sound+'"]\_V'
+	}
+	elseif _method==1 && FSIZE(_sound)<=0 {
+		//音を鳴らす設定＆指定ファイルが無いか、あっても空
+		_script='\_q'+_text+'\n\f[bold,1]※音声ファイル検出失敗\f[bold,default]\_q'
+	}
+	else {
+		//バルーンの文字で通知
+		_script='\_q'+_text+'\_q'
+	}
+	//出力
+	_script
+}
+
+//------------------------------------------------------------------------------
+//時報の時刻かどうか
+//------------------------------------------------------------------------------
+OnSignal_Check
+{
+	//時報内で時間の重複はできない
+	for _t=GETTIME(), _c=0, _output=''; _c<3&&STRLEN(_output)==0; _c++ {
+		if signal_active[_c]==1 {
+			_m=TOINT(signal_status[_c])
+			if _m==_t[5] {
+				//通知すべきものがある
+				_output=_c
+			}
+		}
+	}
+
+	if STRLEN(_output)>0 {
+		OnSignal_Notify(_output)
+		if signal_repeat[_output]==0 { signal_active[_output]=0 }
+	}
+}
+
+OnSignal_NotifyText
+{
+	_num=_argv[0]
+	_memo='設定時刻です。'
+	if STRLEN(signal_memo[_num])>0 {
+		_memo=signal_memo[_num]
+	}
+	_memo="◆時報%(TOINT(_num)+1)\n%(_memo)"
+	_memo
+}
+
+OnSignal_Notify
+{
+	//通知スクリプトを返す \eなどは呼び出し元で入れてくれ
+	_num=_argv[0]
+	_script=''
+	_method=signal_notifymethod[_num]
+	_sound=signal_sound[_num]
+	_text=OnSignal_NotifyText(_num)
+
+	if _method==0 {
+		//OS通知
+		_text=REPLACE(_text,'\n','/',0)
+		_script='\![set,trayballoon,--title=うかくろっく,--icon=info,--text='+_text+']'
+	}
+	elseif _method==1 && FSIZE(_sound)>0 {
+		//音を鳴らす設定＆指定ファイルがあった
+		_script='\_v["'+_sound+'"]\_V'
+	}
+	elseif _method==1 && FSIZE(_sound)<=0 {
+		//音を鳴らす設定＆指定ファイルが無いか、あっても空
+		_script='\_q'+_text+'\n\f[bold,1]※音声ファイル検出失敗\f[bold,default]\_q'
+	}
+	else {
+		//バルーンの文字で通知
+		_script='\_q'+_text+'\_q'
+	}
+	//出力
+	_script
+}
+
+//------------------------------------------------------------------------------
+//時計表示を更新する
+//------------------------------------------------------------------------------
+
+SecondsToTimeArray : array
+{
+	_a0=_argv[0]
+	_a1=_argv[1]
+
+	_time=(0,0,0)
+	if _a0>=3600 {
+		_time[0]=_a0/3600
+		_time[1]=(_a0%3600)/60
+		_time[2]=_a0%60
+	}
+	else {
+		_time[0]=0
+		_time[1]=_a0/60
+		_time[2]=_a0%60
+	}
+
+	if _a1>0 {
+		_format="$0%(_a1)s"
+		if _a1>=9 {
+			_format='$09s'
+		}
+		_time[0]=STRFORM(_format,_time[0])
+		_time[1]=STRFORM(_format,_time[1])
+		_time[2]=STRFORM(_format,_time[2])
+	}
+	_time
+}
+
+OnRefreshClock_Exec
+{
+	_t=GETSECCOUNT()
+	_remain=0
+	_h=0
+	_m=0
+	_s=0
+
+	if IsShellTypeAnalog==1 {
+
+		if clock_status=='clock' {
+			_t=GETTIME(_t)
+			_h=_t[4]
+			_m=_t[5]
+			_s=_t[6]
+
+			//時間の数値は0～23なので0～11にする
+			if _h>=12 { _h=_h-12 }
+		}
+		else {
+			if clock_status=='pomodoro' {
+				_remain=CurrentPomodoroEndTime-_t-1
+			}
+			elseif clock_status=='kitchen' {
+				_remain=CurrentKitchenEndTime-_t-1
+			}
+
+			_t=SecondsToTimeArray(_remain)
+			_h=_t[0]
+			_m=_t[1]
+			_s=_t[2]
+		}
+
+		_time=IARRAY
+		if clock_status=='clock' {
+			_time[0]=(_h*5)+(_m/12)
+			_time[1]=_m+200
+			_time[2]=_s+400
+		}
+		else {
+			//アニメーションID:時1～59→0
+			if _h<=0 && _remain<=0 { _time[0]=0 }
+			else { _time[0]=59-(_h*5)-(_m/12) }
+
+			//アニメーションID:分201～259→200
+			if _m<=0 && _remain<=0  { _time[1]=200 }
+			elseif _m<=0 && _remain<=60 { _time[1]=259 }
+			else { _time[1]=59-_m+200 }
+
+			//アニメーションID:秒401～459→400
+			if _s<=0 && _remain<=0  { _time[2]=400 }
+			elseif _s<=0 && _remain>0 { _time[2]=459 }
+			else { _time[2]=59-_s+400 }
+		}
+		
+		//スクリプトを返す \eを付けない
+		if IsShellSupportedSeconds==1 {
+			"\1\s[10]\0\s[0]\i[%(_time[0])]\i[%(_time[1])]\i[%(_time[2])]"
+		}
+		else {
+			"\1\s[10]\0\s[0]\i[%(_time[0])]\i[%(_time[1])]"
+		}
+	}
+	else {
+		if clock_status=='clock' {
+			_t=GETTIME(_t)
+			_h=STRFORM('$02d',TOSTR(_t[4]))
+			_m=STRFORM('$02d',TOSTR(_t[5]))
+			_s=STRFORM('$02d',TOSTR(_t[6]))
+		}
+		else {
+			if clock_status=='pomodoro' {
+				_t=CurrentPomodoroEndTime-_t
+			}
+			elseif clock_status=='kitchen' {
+				_t=CurrentKitchenEndTime-_t
+			}
+			_t=SecondsToTimeArray(_t,2)
+			_h=_t[0]
+			_m=_t[1]
+			_s=_t[2]
+		}
+		//時
+		_h1='\i['+SUBSTR(_h,0,1)+']'
+		_h2='\i[1'+SUBSTR(_h,1,1)+']'
+		//分
+		_m1='\i[2'+SUBSTR(_m,0,1)+']'
+		_m2='\i[3'+SUBSTR(_m,1,1)+']'
+		//秒はとりあえず空
+		_s1=''
+		_s2=''
+		if IsShellSupportedSeconds==1 {
+			//対応シェルのみ秒表示追加
+			if clock_status=='clock' {
+				//カウントアップの秒表示
+				_s1='\i[16'+SUBSTR(_s,0,1)+']'
+				_s2='\i[1'+_s+']'
+			}
+			else {
+				//カウントダウンの秒表示
+				_s1='\i[26'+SUBSTR(_s,0,1)+']'
+				_s2='\i[2'+_s+']'
+			}
+		}
+		//スクリプトを返す \eを付けない
+		'\1\s[10]\0\s[0]'+_h1+_h2+_m1+_m2+_s1+_s2
+	}
+
+	//この時の時刻を把握しておく
+	LastTimeRefreshedClock=(TOINT(_h),TOINT(_m),TOINT(_s))
+}
+
+//------------------------------------------------------------------------------
+//ポモドーロ
+//------------------------------------------------------------------------------
+
+OnRefreshPomodoro_Check
+{
+	//システム時間を参照する
+	_remain=CurrentPomodoroEndTime-GETSECCOUNT()
+	if _remain<0 {
+		//残り時間0未満なので判定と通知内容を得る
+		_output=OnRefreshPomodoro_Forward
+		OnRefreshClock_Exec+_output
+		return
+	}
+	elseif SecondsToTimeArray(_remain,0)[2]==0 {
+		//秒が0なので分と時も合わせたい
+		OnRefreshClock_Exec
+		return
+	}
+	elseif SecondsToTimeArray(_remain,0)[1]!=LastTimeRefreshedClock[1] {
+		//分にずれがあるので表示を更新
+		OnRefreshClock_Exec
+		return
+	}
+}
+
+OnRefreshPomodoro_Forward
+{
+	//ここでは時計表示を更新しない
+	if CurrentPomodoroStatus==0 {
+		//作業タイムが終了したので、作業した回数記録を増やす
+		CurrentPomodoroWorkCount++
+		if CurrentPomodoroWorkCount>=pomodoro_cycle {
+				//残り作業回数がないのでタイマーを終了
+				clock_status='clock'
+				CurrentPomodoroStatus=''
+				CurrentPomodoroEndTime=''
+				CurrentPomodoroWorkCount=''
+				//通知する
+				OnRefreshPomodoro_Notify(2)
+				return
+		}
+		else {
+			//休憩を開始
+			CurrentPomodoroStatus=1
+		}
+	}
+	else {
+		//休憩タイム終了、作業を開始
+		CurrentPomodoroStatus=0
+	}
+	//タイマー終了時間を再設定する
+	CurrentPomodoroEndTime=pomodoro_time[CurrentPomodoroStatus]*60+GETSECCOUNT()
+}
+
+OnRefreshPomodoro_Notify
+{
+	//通知スクリプトのみを返す
+	_num=_argv[0]
+	if STRLEN(_num)<=0 { _num=-1 }
+	else { _num=OnPomodoroKindsConvert(_num,'n') }
+
+	_script=''
+
+	_method=''
+	if _num==2 { _method=pomodoro_notifymethod[1] }
+	elseif _num==0 || _num==1 { _method=pomodoro_notifymethod[_num] }
+
+	_sound=''
+	if _num==2 { _sound=pomodoro_sound[1] }
+	elseif _num==0 || _num==1 { _sound=pomodoro_sound[_num] }
+
+	_text=OnRefreshPomodoro_Text[_num]
+	if RE_SEARCH(_text,'\\n')==1 && _method==0 {
+		//複数行ある＆OS通知をする ので加工
+		_text=REPLACE(_text,'\n','/',0)
+	}
+
+	if _num==0 || _num==1 || _num==2 {
+		if _method==0 {
+			//OS通知
+			_script = '\![set,trayballoon,--title=うかくろっく,--icon=info,--text='+_text+']'
+		}
+		elseif _method==1 && FSIZE(_sound)>0 {
+			//音を鳴らす設定＆指定ファイルがあった
+			_script='\_v["'+_sound+'"]\_V'
+		}
+		elseif _method==1 && FSIZE(_sound)<=0 {
+			//音を鳴らす設定＆指定ファイルが無いか、あっても空
+			_script='\_q'+_text+'\n\f[bold,1]※音声ファイル検出失敗\f[bold,default]\_q'
+		}
+		else {
+			//バルーンの文字で通知
+			_script='\_q'+_text+'\_q'
+		}
+	}
+	//出力
+	_script
+}
+
+OnRefreshPomodoro_Text : array
+{
+	//通知スクリプト用の文章のみを配列で \nで改行
+	'◆ポモドーロタイマー\n作業開始の時間になりました。'
+	'◆ポモドーロタイマー\n休憩開始の時間になりました。'
+	'◆ポモドーロタイマー\n設定された作業回数に到達したため、タイマーは終了します。15分～30分程度の休憩を入れてください。'
+}
+
+//------------------------------------------------------------------------------
+//キッチンタイマー
+//------------------------------------------------------------------------------
+
+OnRefreshKitchen_Check
+{
+	//システム時間を参照する
+	_time=GETSECCOUNT()
+	_remain=CurrentKitchenEndTime-_time
+
+	if _remain<0 && kitchen_repeat==0 {
+		//残り時間0未満＆繰り返さない ので終わる
+		clock_status='clock'
+		CurrentKitchenEndTime=''
+		--
+		OnRefreshClock_Exec
+		--
+		//通知する
+		OnRefreshKitchen_Notify
+		return
+	}
+	elseif _remain<0 && kitchen_repeat==1 {
+		//残り時間0未満＆繰り返す ので残り時間を再設定
+		CurrentKitchenEndTime=_time+kitchen_status
+		--
+		//表示を更新
+		OnRefreshClock_Exec
+		--
+		//通知する
+		OnRefreshKitchen_Notify
+		return
+	}
+	elseif SecondsToTimeArray(_remain,0)[2]==0 {
+		//秒が0なので分と時も合わせたい
+		OnRefreshClock_Exec
+		return
+	}
+	elseif SecondsToTimeArray(_remain,0)[1]!=LastTimeRefreshedClock[1] {
+		//分にずれがあるので表示を更新
+		OnRefreshClock_Exec
+		return
+	}
+}
+
+OnRefreshKitchen_Notify
+{
+	//通知内容のみ、\eを付けない
+	_method=kitchen_notifymethod
+	_sound=kitchen_sound
+	_text=''
+	if STRLEN(kitchen_memo)<=0 {
+		_text='◆キッチンタイマー\n設定された時間が経過しました。'
+	}
+	else {
+		_text="◆キッチンタイマー\n%(kitchen_memo)"
+	}
+
+	if _method==0 {
+		//OS通知
+		_text=REPLACE(_text,'\n','/',0)
+		'\![set,trayballoon,--title=うかくろっく,--icon=info,--text='+_text+']'
+	}
+	elseif _method==1 {
+		if FSIZE(_sound)>0 {
+			'\_v["'+_sound+'"]\_V'
+		}
+		else {
+			'\_q'+_text+'\n'
+			--
+			'\f[bold,1]※音声ファイル検出失敗\f[bold,default]\_q'
+		}
+	}
+	else {
+		'\_q'+_text+'\_q'
+	}
+}

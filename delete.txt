@@ -1,0 +1,2 @@
+shell\digital\surface0.png
+ghost\master\yaya_homeurl.txt

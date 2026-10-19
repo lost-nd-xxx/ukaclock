@@ -1,0 +1,10 @@
+# ネットワーク更新（updates2.dau）はファイルごとの MD5 で更新を判定する。
+# Git が改行コードや文字コードを変換すると MD5 が変わるため、すべてのファイルを変換しない。
+* -text
+
+# 画像・バイナリ
+*.png binary
+*.ico binary
+*.dll binary
+*.psd binary
+*.nar binary

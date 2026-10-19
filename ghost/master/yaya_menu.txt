@@ -1,0 +1,1179 @@
+//******************************************************************************
+// YAYA ゴーストテンプレート
+// メニュー処理辞書
+//******************************************************************************
+
+//******************************************************************************
+//メインメニューの展開
+//******************************************************************************
+
+//------------------------------------------------------------------------------
+//メインメニュー展開
+//------------------------------------------------------------------------------
+
+OnMenu
+{
+	_kind='普通の時計'
+	if clock_status=='pomodoro' {
+		_kind=OnPomodoroStatus
+	}
+	elseif clock_status=='kitchen' {
+		_kind='キッチンタイマー'
+	}
+	OnRefreshClock_Exec+'\![set,autoscroll,disable]\_q'
+	--
+	"現在:%(_kind)\n[200]"
+	--
+	if clock_status=='pomodoro' || clock_status=='kitchen' {
+		TopMenu_AboutTimer
+		--
+		MenuItem_HR+右上の閉じるボタン+'\_q\e'
+		return
+	}
+	else {
+		TopMenuItem_Kitchen+'\n[200]'
+		--
+		TopMenuItem_Pomodoro+'\n[200]'
+		--
+		TopMenuItem_Alarm+'\n[200]'
+		--
+		TopMenuItem_Signal
+	}
+	--
+	右上の閉じるボタン+'\_q\e'
+}
+
+MenuItem_HR
+{
+	_full_length=18
+	_length=_full_length-GETSTRBYTES(_argv[0])/2
+	for _hr='', _c=0; _c<=_length; _c++; {
+		_hr+='─'
+	}
+	if STRLEN(_argv[0])<=0 {
+		'\n[60]\_n\f[shadowcolor,none]\f[color,disable]'+_hr+'\f[default]\_n\n[-60]'
+	}
+	else {
+		_argv[0]+'\_n\f[shadowcolor,none]\f[color,disable]'+_hr+'\f[default]\_n'
+	}
+}
+
+TopMenuItem_Pomodoro
+{
+	MenuItem_HR
+	--
+	'\![*]\__q[OnMenu_AboutPomodoro]ポモドーロタイマー\__q '
+	--
+	'\__q[OnPomodoroStart]['+絵文字フォント変え('\_u[0x25B6]')+']\__q'
+	--
+	_status='作業'+pomodoro_time[0]+'分x'+pomodoro_cycle+'回:休憩'+pomodoro_time[1]+'分'
+
+	'\f[color,disable]\f[shadowcolor,none]'+_status+'\f[default]'
+}
+
+TopMenuItem_Kitchen
+{
+	MenuItem_HR
+	--
+	'\![*]\__q[OnMenu_AboutKitchen]キッチンタイマー  \__q '
+	--
+	_status=''
+	'\__q[OnKitchenStart]['+絵文字フォント変え('\_u[0x25B6]')+']\__q'
+	if kitchen_status>=3600 {
+		_status+=(kitchen_status/3600)+'時'
+		_status+=((kitchen_status%3600)/60)+'分'
+		_status+=(kitchen_status%60)+'秒'
+	}
+	elseif kitchen_status>=60 {
+		_status+=(kitchen_status/60)+'分'
+		_status+=(kitchen_status%60)+'秒'
+	}
+	else {
+		_status=kitchen_status%60+'秒'
+	}
+	--
+	'\f[color,disable]\f[shadowcolor,none]'+_status
+	--
+	_repeat='なし'
+	if kitchen_repeat==1 { _repeat='あり' }
+	" 繰返:%(_repeat)\f[default]"
+}
+
+TopMenuItem_Alarm
+{
+	MenuItem_HR
+	--
+	'\![*]\__q[OnMenu_AboutAlarm]アラーム\__q '
+	--
+	'\__q[OnAlarmActiveChange,0,OnMenu]['
+	--
+	if alarm_active[0]==0 { "\f[color,disable]\f[shadowcolor,none]\_u[0x2610]"+SUBSTR(alarm_status[0],0,2)+':'+SUBSTR(alarm_status[0],2,2)+'\f[default]]\__q' }
+	else { "\_u[0x2611]"+SUBSTR(alarm_status[0],0,2)+':'+SUBSTR(alarm_status[0],2,2)+']\__q' }
+	--
+	' \__q[OnAlarmActiveChange,1,OnMenu]['
+	--
+	if alarm_active[1]==0 { "\f[color,disable]\f[shadowcolor,none]\_u[0x2610]"+SUBSTR(alarm_status[1],0,2)+':'+SUBSTR(alarm_status[1],2,2)+'\f[default]]\__q' }
+	else { "\_u[0x2611]"+SUBSTR(alarm_status[1],0,2)+':'+SUBSTR(alarm_status[1],2,2)+']\__q' }
+	--
+	' \__q[OnAlarmActiveChange,2,OnMenu]['
+	--
+	if alarm_active[2]==0 { "\f[color,disable]\f[shadowcolor,none]\_u[0x2610]"+SUBSTR(alarm_status[2],0,2)+':'+SUBSTR(alarm_status[2],2,2)+'\f[default]]\__q' }
+	else { "\_u[0x2611]"+SUBSTR(alarm_status[2],0,2)+':'+SUBSTR(alarm_status[2],2,2)+']\__q' }
+}
+
+TopMenuItem_Signal
+{
+	MenuItem_HR
+	--
+	'\![*]\__q[OnMenu_AboutSignal]時報    \__q '
+	--
+	'\__q[OnSignalActiveChange,0,OnMenu]['
+	--
+	if signal_active[0]==0 { "\f[color,disable]\f[shadowcolor,none]\_u[0x2610]"+SUBSTR(signal_status[0],0,2)+'分 \f[default]]\__q' }
+	else { "\_u[0x2611]"+SUBSTR(signal_status[0],0,2)+'分 ]\__q' }
+	--
+	' \__q[OnSignalActiveChange,1,OnMenu]['
+	--
+	if signal_active[1]==0 { "\f[color,disable]\f[shadowcolor,none]\_u[0x2610]"+SUBSTR(signal_status[1],0,2)+'分 \f[default]]\__q' }
+	else { "\_u[0x2611]"+SUBSTR(signal_status[1],0,2)+'分 ]\__q' }
+	--
+	' \__q[OnSignalActiveChange,2,OnMenu]['
+	--
+	if signal_active[2]==0 { "\f[color,disable]\f[shadowcolor,none]\_u[0x2610]"+SUBSTR(signal_status[2],0,2)+'分 \f[default]]\__q' }
+	else { "\_u[0x2611]"+SUBSTR(signal_status[2],0,2)+'分 ]\__q' }
+}
+
+OnResetClock
+{
+	//タイマーを終了、時計に戻す
+	SetDefaultValuesForReset
+	OnMenu
+}
+
+OnPomodoroStart
+{
+	clock_status='pomodoro'
+	CurrentPomodoroEndTime=pomodoro_time[0]*60+GETSECCOUNT()-1
+	//0秒を満了したら終了する判定のため、1を引いておく
+	//1秒未満の細かい表示に対応するシェルが出た場合、おかしくなるかも？
+	CurrentPomodoroStatus=0
+	CurrentPomodoroWorkCount=0
+	--
+	OnRefreshClock_Exec+'\e'
+}
+
+TopMenu_AboutTimer
+{
+	"\![*]\__q[OnResetClock]タイマー停止/再設定\__q"
+}
+
+OnMenu_PauseAlarm
+{
+	alarm_active=(0,0,0)
+	OnMenu
+}
+
+OnMenu_PauseSignal
+{
+	signal_active=(0,0,0)
+	OnMenu
+}
+
+右上の閉じるボタン
+{
+	if _argc==0 {
+		'\_l[0,0]\f[align,right]\__q[OnSHIORI3FW.SurfaceRestore][×]\__q'
+	}
+	else {
+		'\_l[0,0]\f[align,right]\__q[OnMenu][戻]\__q\__q[OnSHIORI3FW.SurfaceRestore][×]\__q'
+	}
+}
+
+絵文字フォント変え
+{
+	if STRLEN(_argv[0])>0 {
+		'\f[name,"Yu Gothic Medium","游ゴシック Medium","YuGothic","游ゴシック体","Meiryo","メイリオ"]'+_argv[0]+'\f[name,default]'
+	}
+}
+
+入力箱を閉じる
+{
+	'\![close,inputbox,__SYSTEM_ALL_INPUT__]\![close,dialog,__SYSTEM_ALL_DIALOG__]'
+}
+
+OnMenu_AboutPomodoro
+{
+	OnUkaclockRefresh_Exec+'\_q\![set,autoscroll,disable]'
+	--
+	'\![*]\__q[OnPomodoroStart]ポモドーロタイマー開始\__q\n[150]'
+	--
+	'\![*]\__q[OnWhatsPomodoro]概要\f[color,disable]\f[shadowcolor,none]※ブラウザを開きます\f[default]\__q\n[150]'
+	--
+	MenuItem_HR('◆設定変更')+'\n'
+	--
+	"\__q[OnPomodoroTimeDialog,work][作業:%(pomodoro_time[0])分]\__q"
+	--
+	"\__q[OnPomodoroTimeDialog,rest][休憩:%(pomodoro_time[1])分]\__q"
+	--
+	"\__q[OnPomodoroCycleDialog][長休憩まで:%(pomodoro_cycle)回作業]\__q\n"
+	--
+	_t='通知しない'
+	if pomodoro_prioritize==0 { _t='通知する' }
+	"\__q[OnPomodoroPriorityToggle]ポモドーロ中の時報とアラーム:[%(_t)]\__q\n[150]"
+	--
+	MenuItem_HR('◆通知方法')+'\n'
+	--
+	AboutPomodoro_Item(0)+'\n'
+	--
+	AboutPomodoro_Item(1)
+	--
+	右上の閉じるボタン(1) + '\_q\e'
+}
+
+AboutPomodoro_Item
+{
+	_a0=_argv[0]
+	_notifymethod=' OS通知 '
+	_test='試行'
+	_kindjp=OnPomodoroKindsConvert(_a0,'j')
+	if pomodoro_notifymethod[_a0]==1 {
+		_notifymethod='   音   '
+		_test='試聴'
+	}
+	elseif pomodoro_notifymethod[_a0]==2 {
+		_notifymethod='バルーン'
+	}
+	"\__q[OnPomodoroNotifyMethodToggle,%(_a0)]%(_kindjp)開始:[%(_notifymethod)]\__q"
+	--
+	_s=pomodoro_sound[_a0]
+	if pomodoro_notifymethod[_a0]==1 && FSIZE(_s)<=0 {
+		'\f[color,disable][試聴]\f[default]'
+	}
+	else {
+		"\__q[OnPomodoroNotifyTest,%(_a0)][%(_test)]\__q"
+	}
+	--
+	if pomodoro_notifymethod[_a0]==1 {
+		if FSIZE(_s)>0 {
+			_name=SPLITPATH(_s)[2]
+			" \__q[OnPomodoroSoundDialog,%(_a0)]♪:[%(_name)]\__q"
+		}
+		else { " \__q[OnPomodoroSoundDialog,%(_a0)]♪:[\f[color,disable]\f[shadowcolor,none]未設定\f[default]]\__q" }
+	}
+}
+
+OnPomodoroNotifyMethodToggle
+{
+	_num=OnPomodoroKindsConvert(reference[0],'n')
+
+	if pomodoro_notifymethod[_num]==0 { pomodoro_notifymethod[_num]=1 }
+	elseif pomodoro_notifymethod[_num]==1 { pomodoro_notifymethod[_num]=2 }
+	else { pomodoro_notifymethod[_num]=0 }
+
+	OnMenu_AboutPomodoro
+}
+
+OnPomodoroPriorityToggle
+{
+	if pomodoro_prioritize==0 { pomodoro_prioritize=1 }
+	else { pomodoro_prioritize=0 }
+
+	OnMenu_AboutPomodoro
+}
+
+OnPomodoroStatus
+{
+	if CurrentPomodoroStatus==0 {
+		'ポモドーロ/作業'
+	}
+	elseif CurrentPomodoroStatus==1 {
+		'ポモドーロ/休憩'
+	}
+	else {
+		'ポモドーロ/その他'
+	}
+}
+
+OnPomodoroCycleDialog
+{
+	OnUkaclockRefresh_Exec
+	--
+	"\![open,sliderinput,OnPomodoroCycleSet,--timeout=0,--text=%(CHR(34))%(pomodoro_cycle),1,9%(CHR(34))]"
+	--
+	'\0\_q長めに休憩するまでの作業の回数を入力してください。\_q\x'
+	--
+	入力箱を閉じる+'\![raise,OnMenu_AboutPomodoro]'
+}
+
+OnPomodoroCycleSet
+{
+	pomodoro_cycle=reference[0]
+	OnMenu_AboutPomodoro
+}
+
+OnWhatsPomodoro
+{
+	'\C'
+	--
+	'\![open,browser,https://ja.wikipedia.org/wiki/%E3%83%9D%E3%83%A2%E3%83%89%E3%83%BC%E3%83%AD%E3%83%BB%E3%83%86%E3%82%AF%E3%83%8B%E3%83%83%E3%82%AF]'
+	--
+	'\e'
+}
+
+OnPomodoroKindsConvert
+{
+	//定義を文字列で　数字系は後で数値型へ直す
+	_n=('0','1','2');
+	_e=('work','rest','longrest');
+	_j=('作業','休憩','長めに休憩');
+
+	//引数を番号へ変換
+	_a0=TOSTR(_argv[0])
+	if _a0==_n[1]||_a0==_e[1]||_a0==_j[1] { _a0=_n[1] }
+	elseif _a0==_n[2]||_a0==_e[2]||_a0==_j[2] { _a0=_n[2] }
+	else { _a0=_n[0] }
+	_a0=TOINT(_a0)
+
+	//指定された形式で返す
+	if _argv[1]=='n'||_argv[1]=='num'||_argv[1]=='number' { TOINT(_n[_a0]) }
+	elseif _argv[1]=='e'||_argv[1]=='eng'||_argv[1]=='english' { _e[_a0] }
+	else { _j[_a0] }
+}
+
+OnPomodoroTimeDialog
+{
+	_num=OnPomodoroKindsConvert(reference[0],'n')
+	_text=OnPomodoroKindsConvert(reference[0],'j')
+	_time=pomodoro_time[OnPomodoroKindsConvert(reference[0],'n')]
+	OnUkaclockRefresh_Exec
+	--
+	"\![open,inputbox,OnPomodoroTimeSet,--timeout=0,--text=%(_time),--limit=2,--reference=%(_num)]"
+	--
+	"\_q%(_text)時間として設定する分を1～59の数字のみで入力してください。\_q\x"
+	--
+	入力箱を閉じる + '\![raise,OnMenu_AboutPomodoro]\e'
+}
+
+OnPomodoroTimeSet
+{
+	_t=TOINT(ZEN2HAN(reference[0],'number'))
+	_num=OnPomodoroKindsConvert(reference[2],'n')
+
+	if _t<1 || _t>59 {
+		//数字以外の時は上のTOINTで0にされている
+		OnUkaclockRefresh_Exec
+		--
+		"\0\_q範囲外の数字か、数字以外が入力されました。\_q\n[150]\![embed,OnPomodoroTimeDialog,%(reference[2])]"
+	}
+	else {
+		pomodoro_time[_num]=_t
+		OnMenu_AboutPomodoro
+	}
+}
+
+OnPomodoroSoundDialog
+{
+	_path=''
+	_n=OnPomodoroKindsConvert(reference[0],'n')
+	_kind=OnPomodoroKindsConvert(_n,'e')
+	_jp=OnPomodoroKindsConvert(_n,'j')
+	_sound=pomodoro_sound[_n]
+
+	if FSIZE(_sound)>0 {
+		_path=SPLITPATH(_sound)
+		_path=_path[0]+_path[1]
+	}
+	elseif FATTRIB('C:/Windows/Media/')!=-1 {
+		_path='C:/Windows/Media/'
+	}
+	else {
+		_path='__system_desktop__'
+	}
+
+	"\C\![open,dialog,open,--title=%(_jp)開始の音,--dir=%(CHR(34))%(_path)%(CHR(34)),--filter=音声ファイル|*.mp3;*.wav;*.wma,--id=OnPomodoroSoundSet%(_n)]"
+}
+
+OnPomodoroSoundSet0
+{
+	pomodoro_sound[0]=reference[2]
+	'\![raise,OnMenu_AboutPomodoro]'
+}
+OnPomodoroSoundSet1
+{
+	pomodoro_sound[1]=reference[2]
+	'\![raise,OnMenu_AboutPomodoro]'
+}
+
+OnPomodoroNotifyTest
+{
+	_n=reference[0]
+	_t=OnRefreshPomodoro_Text[_n]
+	_s=pomodoro_sound[_n]
+	_method=pomodoro_notifymethod[_n]
+	_notify=OnRefreshPomodoro_Notify(_n)
+
+	if _method==0 {
+		lasttime_notifytest=GETSECCOUNT()
+		'\C'+_notify+'\e'
+	}
+	elseif _method==1 {
+		if FSIZE(_s)>0 {
+			'\C'+_notify+'\e'
+		}
+		else {
+			_notify+'\x'+OnMenu_AboutPomodoro
+		}
+	}
+	else {
+		_notify+'\x'+OnMenu_AboutPomodoro
+	}
+}
+
+OnMenu_AboutAlarm
+{
+	OnUkaclockRefresh_Exec+'\_q\![set,autoscroll,disable]'
+	--
+	AboutAlarm_Item(0)+'\n[150]'
+	--
+	AboutAlarm_Item(1)+'\n[150]'
+	--
+	AboutAlarm_Item(2)
+	--
+	右上の閉じるボタン(1)+'\_q\e'
+}
+
+AboutAlarm_Item
+{
+	_a0=TOINT(_argv[0])
+	_active=alarm_active[_a0]
+	_soundfile=alarm_sound[_a0]
+	_status=SUBSTR(alarm_status[_a0],0,2)+':'+SUBSTR(alarm_status[_a0],2,2)
+	_method=alarm_notifymethod[_a0]
+	_memo=alarm_memo[_a0]
+	_memolimit=16
+
+	MenuItem_HR("◆アラーム設定%(HAN2ZEN(_a0+1))")+'\n'
+	--
+	"\__q[OnAlarmActiveChange,%(_a0)]状態:"
+	--
+	if _active==1 {'[有効]'} else {'[無効]'}
+	--
+	"\__q \__q[OnAlarmStatusDialog,%(_a0)]時刻:[%(_status)]\__q "
+	--
+	_repeat='なし'
+	if alarm_repeat[_a0]==1 { _repeat='あり' }
+	"\__q[OnAlarmRepeatToggle,%(_a0)]繰り返し:[%(_repeat)]\__q\n"
+	--
+	"\__q[OnAlarmNotifyMethodToggle,%(_a0)]通知方法:"
+	--
+	if _method==0 {
+		"[ OS通知 ]\__q\__q[OnAlarmNotifyTest,%(_a0)][試行]\__q"
+	}
+	elseif _method==1 {
+		_memolimit=5
+		"[ 音のみ ]\__q"
+		--
+		if FSIZE(_soundfile)>0 {
+			_soundfile=SPLITPATH(_soundfile)
+			_soundfile=_soundfile[2]
+			"\__q[OnAlarmNotifyTest,%(_a0)][試聴]\__q"
+		}
+		else {
+			_soundfile='\f[color,disable]\f[shadowcolor,none]未設定\f[default]'
+			"\f[color,disable]\f[shadowcolor,none][試聴]\f[default]"
+		}
+		--
+		"\__q[OnAlarmSoundDialog,%(_a0)]♪:[%(_soundfile)]\__q"
+	}
+	else {
+		"[バルーン]\__q\__q[OnAlarmNotifyTest,%(_a0)][試行]\__q"
+	}
+	--
+	if STRLEN(_memo)<=0 {
+		" \__q[OnAlarmMemoDialog,%(_a0)]メモ:[\f[color,disable]\f[shadowcolor,none]なし\f[default]]\__q"
+	}
+	else {
+		" \__q[OnAlarmMemoDialog,%(_a0)]メモ:[%(SHIORI3FW.MakeShortText(alarm_memo[_a0],_memolimit))]\__q"
+	}
+}
+
+OnAlarmRepeatToggle
+{
+	_num=reference[0]
+	if alarm_repeat[_num]==0 { alarm_repeat[_num]=1 }
+	else { alarm_repeat[_num]=0 }
+	
+	if ISFUNC(reference[1])==1 { EVAL(reference[1]); return }
+
+	OnMenu_AboutAlarm
+}
+
+OnAlarmNotifyMethodToggle
+{
+	_num=reference[0]
+	if alarm_notifymethod[_num]==0 { alarm_notifymethod[_num]=1 }
+	elseif alarm_notifymethod[_num]==1 { alarm_notifymethod[_num]=2 }
+	else { alarm_notifymethod[_num]=0 }
+	--
+	OnMenu_AboutAlarm
+}
+
+OnAlarmStatusDialog
+{
+	OnUkaclockRefresh_Exec
+	--
+	_r0=reference[0]
+	_status=alarm_status[_r0]
+	"\![open,inputbox,OnAlarmStatusSet,--timeout=0,--text=%(_status),--limit=4,--reference=%(_r0)]"
+	--
+	'\_q通知してほしい時刻を24時間表記の数字4文字で入力してください。\n1時1分は0101です。\_q\x'+入力箱を閉じる+'\![embed,OnMenu_AboutAlarm]'
+}
+
+OnAlarmStatusSet
+{
+	_r0=reference[0]
+	_r2=reference[2]
+
+	_t=STRFORM('$04d',TOSTR(ZEN2HAN(SUBSTR(_r0,0,4))))
+	_h=TOINT(SUBSTR(_t,0,2))
+	_m=TOINT(SUBSTR(_t,2,2))
+
+	_c=alarm_status
+	if alarm_active[0]==0 { _c[0]=0 }
+	if alarm_active[1]==0 { _c[1]=0 }
+	if alarm_active[2]==0 { _c[2]=0 }
+	_c[_r2]=''
+
+	if _h<0 || _h>23 || _m<0 || _m>59 {
+		OnUkaclockRefresh_Exec
+		--
+		"\_q範囲外の数字か、数字以外が入力されました。\_q\n[150]\![embed,OnAlarmStatusDialog,%(_r2)]"
+		return
+	}
+	elseif STRSTR(TOSTR(_c),_t,0)>=0 && alarm_active[_r2]==1 {
+		OnUkaclockRefresh_Exec
+		--
+		"\_q同じ時刻を複数個有効にすることはできません。\_q\n[150]\![embed,OnAlarmStatusDialog,%(_r2)]"
+		return
+	}
+	else
+	{
+		alarm_status[_r2]=_t
+		OnMenu_AboutAlarm
+	}
+}
+
+OnAlarmMemoDialog
+{
+	OnUkaclockRefresh_Exec
+	--
+	_r0=reference[0]
+	_memo=alarm_memo[_r0]
+	_text=',--text="'+_memo+'"'
+	if STRLEN(_memo)<=0 {
+		_text=''
+		_memo='\f[color,disable]\f[shadowcolor,none]なし\f[default]'
+	}
+	"\![open,inputbox,OnAlarmMemoSet,0,--limit=30,--reference=%(_r0)%(_text)]"
+	--
+	"\_qアラーム%(HAN2ZEN(_r0+1))のメモを、\n全角15字(半角30字)以内で入力してください。\n[150]メモを消去したい場合は、\n空欄の状態で決定してください。\n[150]"
+	--
+	MenuItem_HR('◆現在の設定内容')+'\n'
+	--
+	"%(_memo)\_q\x"+入力箱を閉じる+'\![embed,OnMenu_AboutAlarm]'
+}
+
+OnAlarmMemoSet
+{
+	_memo=TOSTR(reference[0])
+	_r2=reference[2]
+
+	if STRLEN(_memo)<=0 {
+		alarm_memo[_r2]=''
+	}
+	else {
+		_memo=MemoTextShorten(_memo,31)
+		_memo=SHIORI3FW.EscapeAllTags(_memo)
+		_memo=SHIORI3FW.TranslateSystemChar(_memo)
+		alarm_memo[_r2]=_memo
+	}
+	OnMenu_AboutAlarm
+}
+
+OnAlarmActiveChange
+{
+	_r0=reference[0]
+
+	_c=alarm_status
+	if alarm_active[0]==0{_c[0]=0}
+	if alarm_active[1]==0{_c[1]=0}
+	if alarm_active[2]==0{_c[2]=0}
+	_c[_r0]=''
+
+	if alarm_active[_r0]==0 {
+		if STRSTR(TOSTR(_c),alarm_status[_r0],0)!=-1 {
+			OnUkaclockRefresh_Exec+"\_q同じ時刻を複数個有効にすることはできません。\_q\x"
+		}
+		else {
+			alarm_active[_r0]=1
+		}
+	}
+	else {
+		alarm_active[_r0]=0
+	}
+	--
+	if ISFUNC(reference[1])==1 {
+		"\![embed,%(reference[1])]\e"
+		return
+	}
+	OnMenu_AboutAlarm
+}
+
+OnAlarmSoundDialog
+{
+	_r0=TOINT(reference[0])
+	_path=alarm_sound[_r0]
+
+	if FSIZE(_path)>0 {
+		_path=SPLITPATH(_path)
+		_path=_path[0]+_path[1]
+	}
+	elseif FATTRIB('C:/Windows/Media/')!=-1 {
+		_path='C:/Windows/Media/'
+	}
+	else {
+		_path='__system_desktop__'
+	}
+
+	"\C\![open,dialog,open,--title=アラーム%(HAN2ZEN(_r0+1))の音を選択してください,--dir=%(CHR(34))%(_path)%(CHR(34)),--filter=音声ファイル|*.mp3;*.wav;*.wma,--id=OnAlarmSoundSet%(_r0)]"
+}
+
+OnAlarmSoundSet0
+{
+	alarm_sound[0]=reference[2]
+	OnMenu_AboutAlarm
+}
+OnAlarmSoundSet1
+{
+	alarm_sound[1]=reference[2]
+	OnMenu_AboutAlarm
+}
+OnAlarmSoundSet2
+{
+	alarm_sound[2]=reference[2]
+	OnMenu_AboutAlarm
+}
+
+OnAlarmNotifyTest
+{
+	_num=TOINT(reference[0])
+	_method=alarm_notifymethod[_num]
+	_sound=alarm_sound[_num]
+	_text=OnAlarm_NotifyText(_num)
+
+	if _method==0 {
+		_text=REPLACE(_text,'\n','/',0)
+		'\C\![set,trayballoon,--title=うかくろっく,--icon=info,--text="'+_text+'"]\e'
+	}
+	elseif _method==1 {
+		if FSIZE(_sound)>0 {
+			'\C\_v["'+_sound+'"]\e'
+		}
+		else { '\0\_q指定されているファイルを見つけられませんでした。\_q\x'+OnMenu_AboutAlarm }
+	}
+	else {
+		if STRLEN(_text[1])<=0 {
+			_text="%(_text[0])"
+		}
+		else {
+			_text="%(_text[0])\n%(_text[1])"
+		}
+		'\0\_q'+_text+'\_q\x'+OnMenu_AboutAlarm
+	}
+}
+
+OnMenu_AboutSignal
+{
+	OnUkaclockRefresh_Exec+'\_q\![set,autoscroll,disable]'
+	--
+	AboutSignal_Item(0) + '\n[150]'
+	--
+	AboutSignal_Item(1) + '\n[150]'
+	--
+	AboutSignal_Item(2)
+	--
+	右上の閉じるボタン(1)+'\e'
+}
+
+AboutSignal_Item
+{
+	_a0=TOINT(_argv[0])
+	_active=signal_active[_a0]
+	_soundfile=signal_sound[_a0]
+	_status=signal_status[_a0]
+	_method=signal_notifymethod[_a0]
+	_memo=signal_memo[_a0]
+	_memolimit=16
+
+	MenuItem_HR("◆時報設定%(HAN2ZEN(_a0+1))")+'\n'
+	--
+	"\__q[OnSignalActiveChange,%(_a0)]状態:"
+	--
+	if _active==1 {'[有効]'} else {'[無効]'}
+	--
+	"\__q \__q[OnSignalStatusDialog,%(_a0)]毎時:[%(_status)]\__q "
+	--
+	_repeat='なし'
+	if signal_repeat[_a0]==1 { _repeat='あり' }
+	"\__q[OnSignalRepeatToggle,%(_a0)]繰り返し:[%(_repeat)]\__q\n"
+	--
+	"\__q[OnSignalNotifyMethodToggle,%(_a0)]通知方法:"
+	--
+	if _method==0 {
+		"[ OS通知 ]\__q\__q[OnSignalNotifyTest,%(_a0)][試行]\__q"
+	}
+	elseif _method==1 {
+		_memolimit=5
+		"[ 音のみ ]\__q"
+		--
+		if FSIZE(_soundfile)>0 {
+			_soundfile=SPLITPATH(_soundfile)
+			_soundfile=_soundfile[2]
+			"\__q[OnSignalNotifyTest,%(_a0)][試聴]\__q"
+		}
+		else {
+			_soundfile='未設定'
+			"\f[color,disable]\f[shadowcolor,none][試聴]\f[default]"
+		}
+		--
+		"\__q[OnSignalSoundDialog,%(_a0)]♪:[%(_soundfile)]\__q"
+	}
+	else {
+		"[バルーン]\__q\__q[OnSignalNotifyTest,%(_a0)][試行]\__q"
+	}
+	--
+	if STRLEN(_memo)<=0 {
+		" \__q[OnSignalMemoDialog,%(_a0)]メモ:[\f[color,disable]\f[shadowcolor,none]なし\f[default]]\__q"
+	}
+	else {
+		" \__q[OnSignalMemoDialog,%(_a0)]メモ:[%(SHIORI3FW.MakeShortText(signal_memo[_a0],_memolimit))]\__q"
+	}
+}
+
+OnSignalRepeatToggle
+{
+	_num=reference[0]
+	
+	if signal_repeat[_num]==0 { signal_repeat[_num]=1 }
+	else { signal_repeat[_num]=0 }
+
+	if ISFUNC(reference[1])==1 { EVAL(reference[1]); return }
+
+	OnMenu_AboutSignal
+}
+
+OnSignalNotifyMethodToggle
+{
+	_num=reference[0]
+	if signal_notifymethod[_num]==0 { signal_notifymethod[_num]=1 }
+	elseif signal_notifymethod[_num]==1 { signal_notifymethod[_num]=2 }
+	else { signal_notifymethod[_num]=0 }
+	--
+	OnMenu_AboutSignal
+}
+
+OnSignalStatusDialog
+{
+	OnUkaclockRefresh_Exec
+	--
+	_r0 = reference[0]
+	_status = signal_status[_r0]
+	"\![open,inputbox,OnSignalStatusSet,--timeout=0,--text=%(_status),--limit=2,--reference=%(_r0)]"
+	--
+	'\_q通知してほしい時刻を毎時0分から59分までの数字2文字で入力してください。\n1分なら01です。\_q\x'+入力箱を閉じる+'\![embed,OnMenu_AboutSignal]'
+}
+
+OnSignalStatusSet
+{
+	_r0=reference[0]
+	_r2=reference[2]
+
+	_t=STRFORM('$02d',ZEN2HAN(SUBSTR(_r0,0,2)))
+	_m=TOINT(_t)
+
+	_c=signal_status
+	if signal_active[0]==0{_c[0]=0}
+	if signal_active[1]==0{_c[1]=0}
+	if signal_active[2]==0{_c[2]=0}
+	_c[_r2]=''
+
+	if ( _m<0 || _m>59 ) {
+		OnUkaclockRefresh_Exec
+		--
+		"\_q範囲外の数字か、数字以外が入力されました。\_q\n[150]\![embed,OnSignalStatusDialog,%(_r2)]"
+		return
+	}
+	elseif STRSTR(TOSTR(_c),TOSTR(_m),0)!=-1 && signal_active[_r2]==1 {
+		OnUkaclockRefresh_Exec
+		--
+		"\_q同じ時刻を複数個有効にすることはできません。\_q\n[150]\![embed,OnSignalStatusDialog,%(_r2)]"
+		return
+	}
+	else
+	{
+		signal_status[_r2]=STRFORM('$02d',_m)
+		OnMenu_AboutSignal
+	}
+}
+
+OnSignalMemoDialog
+{
+	OnUkaclockRefresh_Exec
+	--
+	_r0=reference[0]
+	_memo=signal_memo[_r0]
+	_text='--text="'+_memo+'"'
+	if STRLEN(_memo)<=0 {
+		_text=''
+		_memo='\f[color,disable]\f[shadowcolor,none]なし\f[default]'
+	}
+	"\![open,inputbox,OnSignalMemoSet,--timeout=0,--limit=30,--reference=%(_r0),%(_text)]"
+	--
+	"\_q時報%(HAN2ZEN(_r0+1))のメモを、\n全角15字(半角30字)以内で入力してください。\n[150]メモを消去したい場合は、\n空欄の状態で決定してください。\n[150]"
+	--
+	MenuItem_HR('◆現在の設定内容')+'\n'
+	--
+	"%(_memo)\_q\x"+入力箱を閉じる+'\![embed,OnMenu_AboutSignal]'
+}
+
+OnSignalMemoSet
+{
+	_memo=TOSTR(reference[0])
+	_r2=reference[2]
+
+	if STRLEN(_memo)<=0 {
+		signal_memo[_r2]=''
+	}
+	else {
+		_memo=MemoTextShorten(_memo,31)
+		_memo=SHIORI3FW.EscapeAllTags(_memo)
+		_memo=SHIORI3FW.TranslateSystemChar(_memo)
+		signal_memo[_r2]=_memo
+	}
+
+	OnMenu_AboutSignal
+}
+
+OnSignalActiveChange
+{
+	_r0=reference[0]
+
+	_c=signal_status
+	if signal_active[0]==0{_c[0]=0}
+	if signal_active[1]==0{_c[1]=0}
+	if signal_active[2]==0{_c[2]=0}
+	_c[_r0]=''
+
+	if signal_active[_r0]==0 {
+		if STRSTR(TOSTR(_c),signal_status[_r0],0)!=-1 {
+			OnUkaclockRefresh_Exec+"\_q同じ時刻を複数個有効にすることはできません。\_q\x"
+		}
+		else {
+			signal_active[_r0]=1
+		}
+	}
+	else {
+		signal_active[_r0]=0
+	}
+	--
+	if ISFUNC(reference[1])==1 {
+		"\![embed,%(reference[1])]\e"
+		return
+	}
+	OnMenu_AboutSignal
+}
+
+OnSignalSoundDialog
+{
+	_r0=TOINT(reference[0])
+	_path=signal_sound[_r0]
+
+	if STRLEN(_path)>0 && _path!=0 {
+		_path=SPLITPATH(_path)
+		_path=_path[0]+_path[1]
+	}
+	elseif FATTRIB('C:/Windows/Media/')!=-1 {
+		_path='C:/Windows/Media/'
+	}
+	else {
+		_path='__system_desktop__'
+	}
+
+	"\C\![open,dialog,open,--title=時報%(HAN2ZEN(_r0+1))の音を選択してください,--dir=%(CHR(34))%(_path)%(CHR(34)),--filter=音声ファイル|*.mp3;*.wav;*.wma,--id=OnSignalSoundSet%(_r0)]"
+}
+
+OnSignalSoundSet0
+{
+	signal_sound[0]=reference[2]
+	OnMenu_AboutSignal
+}
+OnSignalSoundSet1
+{
+	signal_sound[1]=reference[2]
+	OnMenu_AboutSignal
+}
+OnSignalSoundSet2
+{
+	signal_sound[2]=reference[2]
+	OnMenu_AboutSignal
+}
+
+OnSignalNotifyTest
+{
+	_num=TOINT(reference[0])
+	_method=signal_notifymethod[_num]
+	_sound=signal_sound[_num]
+	_text=OnSignal_NotifyText(_num)
+
+	if _method==0 {
+		_text=REPLACE(_text,'\n','/',0)
+		'\C\![set,trayballoon,--title=うかくろっく,--icon=info,--text="'+_text+'"]\e'
+	}
+	elseif _method==1 {
+		if FSIZE(_sound)>0 {
+			'\C\_v["'+_sound+'"]\e'
+		}
+		else {
+			'\0\_q指定されているファイルを見つけられませんでした。\_q\x'+OnMenu_AboutSignal
+		}
+	}
+	else {
+		if STRLEN(_text[1])<=0 {
+			_text="%(_text[0])"
+		}
+		else {
+			_text="%(_text[0])\n%(_text[1])"
+		}
+		'\0\_q'+_text+'\_q\x'+OnMenu_AboutSignal
+	}
+}
+
+OnKitchenStart
+{
+	clock_status='kitchen'
+	CurrentKitchenEndTime=GETSECCOUNT()+kitchen_status-1
+	//0秒を満了したら終了する判定のため、1を引いておく
+	//1秒未満の細かい表示に対応するシェルが出た場合、おかしくなるかも？
+	OnRefreshClock_Exec+'\e'
+}
+
+OnMenu_AboutKitchen
+{
+	OnUkaclockRefresh_Exec+'\_q\![set,autoscroll,disable]'
+	--
+	_soundfile=kitchen_sound
+	_method=kitchen_notifymethod
+	_status=''
+	if kitchen_status>=3600 {
+		_status+=(kitchen_status/3600)+'時'
+		_status+=((kitchen_status%3600)/60)+'分'
+		_status+=(kitchen_status%60)+'秒'
+	}
+	elseif kitchen_status>=60 {
+		_status+=(kitchen_status/60)+'分'
+		_status+=(kitchen_status%60)+'秒'
+	}
+	else {
+		_status=(kitchen_status%60)+'秒'
+	}
+
+	if kitchen_status>=10 {
+		'\![*]\__q[OnKitchenStart]キッチンタイマー開始\__q\n[150]'
+	}
+	else {
+		'\![*]\f[color,disable]\f[shadowcolor,none]キッチンタイマー開始\f[default]\n[150]'
+	}
+	--
+	MenuItem_HR('◆設定変更')+'\n'
+	--
+	"\__q[OnKitchenStatusDialog]設定時間:[%(_status)]\__q "
+	--
+	_t='なし'
+	if kitchen_repeat==1 { _t='あり' }
+	"\__q[OnKitchenRepeatToggle]繰り返し:[%(_t)]\__q\n"
+	--
+	_t='通知しない'
+	if kitchen_prioritize==0 { _t='通知する' }
+	"\__q[OnKitchenPriorityToggle]作動中の時報とアラーム:[%(_t)]\__q\n"
+	--
+	if STRLEN(kitchen_memo)<=0 {
+		"\__q[OnKitchenMemoDialog]メモ:[\f[color,disable]\f[shadowcolor,none]なし\f[default]]\__q\n[150]"
+	}
+	else {
+		"\__q[OnKitchenMemoDialog]メモ:[%(kitchen_memo)]\__q\n[150]"
+	}
+	--
+	MenuItem_HR('◆通知方法')+'\n'
+	--
+	'\__q[OnKitchenNotifyMethodToggle]終了時:'
+	--
+	if _method==0 {
+		"[ OS通知 ]\__q\__q[OnKitchenNotifyTest][試行]\__q"
+	}
+	elseif _method==1 {
+		"[ 音のみ ]\__q"
+		--
+		if FSIZE(_soundfile)>0 {
+			_soundfile=SPLITPATH(_soundfile)
+			_soundfile=_soundfile[2]
+			"\__q[OnKitchenNotifyTest][試聴]\__q"
+		}
+		else {
+			_soundfile='未設定'
+			"\f[color,disable]\f[shadowcolor,none][試聴]\f[default]"
+		}
+		--
+		" \__q[OnKitchenSoundDialog]♪:[%(_soundfile)]\__q"
+	}
+	else {
+		"[バルーン]\__q\__q[OnKitchenNotifyTest][試行]\__q"
+	}
+	--
+	右上の閉じるボタン(1)+'\e'
+}
+
+OnKitchenMemoDialog
+{
+	OnUkaclockRefresh_Exec
+	--
+	_memo=kitchen_memo
+	_text="--text=%(_memo)"
+	if STRLEN(kitchen_memo)<=0 {
+		_text=''
+		_memo='\f[color,disable]\f[shadowcolor,none]なし\f[default]'
+	}
+	"\![open,inputbox,OnKitchenMemoSet,--timeout=0,--limit=30,%(_text)]"
+	--
+	"\_qキッチンタイマーのメモを、\n全角15字(半角30字)以内で入力してください。\n[150]メモを消去したい場合は、\n空欄の状態で決定してください。\n[150]"
+	--
+	MenuItem_HR('◆現在の設定内容')+'\n'
+	--
+	"%(_memo)\_q\x"+入力箱を閉じる+'\![embed,OnMenu_AboutKitchen]'
+}
+
+OnKitchenMemoSet
+{
+	_memo=TOSTR(reference[0])
+
+	if STRLEN(_memo)<=0 {
+		kitchen_memo=''
+	}
+	else {
+		_memo=MemoTextShorten(_memo,31)
+		_memo=SHIORI3FW.EscapeAllTags(_memo)
+		_memo=SHIORI3FW.TranslateSystemChar(_memo)
+		kitchen_memo=_memo
+	}
+	OnMenu_AboutKitchen
+}
+
+OnKitchenNotifyMethodToggle
+{
+	if kitchen_notifymethod==0 { kitchen_notifymethod=1 }
+	elseif kitchen_notifymethod==1 { kitchen_notifymethod=2 }
+	else { kitchen_notifymethod=0 }
+	--
+	OnMenu_AboutKitchen
+}
+
+OnKitchenStatusDialog
+{
+	OnUkaclockRefresh_Exec
+	--
+	"\![open,inputbox,OnKitchenStatusSet,--timeput=0,--text=%(kitchen_status),--limit=5]"
+	--
+	'\_q数えたい時間を10～43199の秒単位で入力してください。\n2分30秒なら150、1時間なら3600です。\_q\x'+入力箱を閉じる+'\![embed,OnMenu_AboutKitchen]'
+}
+
+OnKitchenStatusSet
+{
+	_r0=reference[0]
+	_seconds=SUBSTR(ZEN2HAN(_r0,'number'),0,5)
+	_seconds=TOINT(_seconds)
+
+	if _seconds<10 || _seconds>43199 {
+		OnUkaclockRefresh_Exec
+		--
+		'\_q範囲外の数字か、数字以外が入力されました。\_q\n[150]\![embed,OnKitchenStatusDialog]'
+	}
+	else
+	{
+		kitchen_status=_seconds
+		OnMenu_AboutKitchen
+	}
+}
+
+OnKitchenPriorityToggle
+{
+	if kitchen_prioritize==0 { kitchen_prioritize=1 }
+	else { kitchen_prioritize=0 }
+	OnMenu_AboutKitchen
+}
+
+OnKitchenRepeatToggle
+{
+	if kitchen_repeat==0 { kitchen_repeat=1 }
+	else { kitchen_repeat=0 }
+	OnMenu_AboutKitchen
+}
+
+OnKitchenSoundDialog
+{
+	_path=kitchen_sound
+
+	if STRLEN(_path)>0 && _path!=0 {
+		_path=SPLITPATH(_path)
+		_path=_path[0]+_path[1]
+	}
+	elseif FATTRIB('C:/Windows/Media/')!=-1 {
+		_path='C:/Windows/Media/'
+	}
+	else {
+		_path='__system_desktop__'
+	}
+
+	"\C\![open,dialog,open,--title=タイマー終了の音を選択してください,--dir=%(CHR(34))%(_path)%(CHR(34)),--filter=音声ファイル|*.mp3;*.wav;*.wma,--id=OnKitchenSoundSet]"
+}
+
+OnKitchenSoundSet
+{
+	kitchen_sound=reference[2]
+	OnMenu_AboutKitchen
+}
+
+OnKitchenNotifyTest
+{
+	_method=kitchen_notifymethod
+	_sound=kitchen_sound
+	_text='◆キッチンタイマー\n設定された時間が経過しました。'
+	if STRLEN(kitchen_memo)>0 {
+		_text="◆キッチンタイマー\n%(kitchen_memo)"
+	}
+
+	if _method==0 {
+		_text=REPLACE(_text,'\n','/',0)
+		'\C\![set,trayballoon,--title=うかくろっく,--icon=info,--text="'+_text+'"]\e'
+	}
+	elseif _method==1 {
+		if FSIZE(_sound)>0 {
+			'\C\_v["'+_sound+'"]\e'
+		}
+		else {
+			'\0\_q指定されているファイルを見つけられませんでした。\_q\x'+OnMenu_AboutKitchen
+		}
+		
+	}
+	else {
+		'\0\_q'+_text+'\_q\x'+OnMenu_AboutKitchen
+	}
+}

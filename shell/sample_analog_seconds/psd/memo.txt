@@ -1,0 +1,20 @@
+# このフォルダの内容物について
+『clock.psd』はFireAlpacaなどで開けます。
+「～～の色柄」というレイヤを描き換えることで、部品の色変え等が可能です。
+また、『clock.psd』はPSDToolの独自拡張機能に対応しています。
+『hands_export.pfv』はPSDTool用のファイルです。
+
+
+# 針の一括出力のしかた
+1. PSDToolで『clock.psd』を開く
+2. 全体の縮小と針の色変えを必要に応じて設定、それ以外は非表示に
+3. 「お気に入り」タブの三本線のボタン→「インポート」から『hands_export.pfv』を開く
+4. 「お気に入り」タブの三本線のボタン→「エクスポート」から「シンプルビューの全パターンをエクスポート」→「パーツ名なし/入れ子」を実行
+
+
+# リンク
+## FireAlpaca
+https://firealpaca.com/ja/
+
+## PSDTool
+https://oov.github.io/psdtool/

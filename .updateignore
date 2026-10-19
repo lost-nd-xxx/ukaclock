@@ -1,0 +1,6 @@
+# https://ssp.shillest.net/ukadoc/manual/descript_install.html
+# 書式は .gitignore と同じ。ゴーストのルート直下に置いた場合のみ有効
+# profile/ var/ などは SSP が自動で除外するので、ここには書かない
+
+# .narignoreファイルの内容を挿入
+include:.narignore

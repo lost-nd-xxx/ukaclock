@@ -1,0 +1,18 @@
+# セーブデータ・ログ（ゴーストを起動すると作られる）
+/ghost/master/yaya_variable.cfg
+/ghost/master/yaya_ssp_debug.log
+/ghost/master/ssp_shiori_log.txt
+
+# SSP がゴースト・シェルごとに作るユーザーデータ
+profile/
+var/
+
+# 生成物（nar など）
+/build/
+*.nar
+
+# OS・エディタ
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/

@@ -1,0 +1,4 @@
+charset,Shift_JIS
+type,ghost
+name,‚¤‚©‚­‚ë‚Á‚­
+directory,lnx_ukaclock

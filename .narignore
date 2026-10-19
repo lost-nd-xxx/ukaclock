@@ -1,0 +1,29 @@
+# https://ssp.shillest.net/ukadoc/manual/descript_install.html
+# 書式は.gitignoreと同じ。ゴーストのルート直下に置いた場合のみ有効
+# profile/ var/ などはSSPが自動で除外するので、ここには書かない
+
+# セーブデータ・ログファイル
+/ghost/master/yaya_variable.cfg
+/ghost/master/yaya_ssp_debug.log
+/ghost/master/ssp_shiori_log.txt
+
+# 作業用ファイル
+/.workspace/
+/tools/
+/build/
+/docs/
+/.narignore
+/.updateignore
+/.narinclude
+/.updateinclude
+
+# バージョン管理・エディタ関連
+/.git/
+/.gitignore
+/.gitattributes
+/.vscode/
+
+# 追加シェルを誤って配布しない
+/shell/*/
+!/shell/master/
+!/shell/digital/
