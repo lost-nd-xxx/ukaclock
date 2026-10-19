@@ -16,4 +16,4 @@ craftman,lost_nd_xxx
 craftmanw,ろすえん
 craftmanurl,https://lnx.flop.jp/
 
-homeurl,https://lnx.flop.jp/ukgk/ghost/ukaclock/
+homeurl,https://raw.githubusercontent.com/lost-nd-xxx/ukaclock/main/
