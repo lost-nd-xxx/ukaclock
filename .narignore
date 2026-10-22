@@ -22,6 +22,7 @@
 /.gitignore
 /.gitattributes
 /.vscode/
+/.claude/
 
 # 追加シェルを誤って配布しない
 /shell/*/
