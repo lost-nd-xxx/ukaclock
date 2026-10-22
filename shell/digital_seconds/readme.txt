@@ -43,7 +43,7 @@ surface0のanimarion0～39、100～165、200～265（intervalはneverを指定�
 （左から3番目の6~9（animation26～29）は現状だと不要なのですが、将来の拡張性を考え設定しています）
 
 ## surface10について
-surface10は見えない状態でも存在しないとエラーが出ます。
+surface10は見えない状態でも存在しないと警告（warning）が出ます。
 ①surface10.pngの配置
 ②surface10の定義をsurfaces.txtへ追加
 このどちらかを行ってください。
