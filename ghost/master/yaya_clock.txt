@@ -16,7 +16,7 @@ OnNotifyShellInfo
 		IsShellSupportedSeconds=0
 	}
 	
-	if RE_SEARCH(reference[1],'/.*?analog.*?/$')==1 || RE_SEARCH(reference[0],'analog')==1 {
+	if RE_SEARCH(reference[1],'/[^/]*analog[^/]*/$')==1 || RE_SEARCH(reference[0],'analog')==1 {
 		//フォルダ名に「analog」が含まれる or シェル名に「analog」が含まれる
 		IsShellTypeAnalog=1
 	}
@@ -396,12 +396,10 @@ OnRefreshClock_Exec
 
 			//アニメーションID:分201～259→200
 			if _m<=0 && _remain<=0  { _time[1]=200 }
-			elseif _m<=0 && _remain<=60 { _time[1]=259 }
 			else { _time[1]=59-_m+200 }
 
 			//アニメーションID:秒401～459→400
 			if _s<=0 && _remain<=0  { _time[2]=400 }
-			elseif _s<=0 && _remain>0 { _time[2]=459 }
 			else { _time[2]=59-_s+400 }
 		}
 		
